@@ -4,16 +4,23 @@ import { usePathname } from 'next/navigation'
 import { useMemo } from 'react'
 import { HiHome } from 'react-icons/hi'
 import { BiSearch } from 'react-icons/bi'
+
 import Box from './Box'
 import SidebarItem from './SidebarItem'
 import Library from './Library'
 
+import { Song } from '@/types'
+import usePlayer from '@/hooks/usePlayer'
+import { twMerge } from 'tailwind-merge'
+
 interface SidebarProps {
-    children: React.ReactNode //this children is passing to the site (page)
+    children: React.ReactNode; //this children is passing to the site (page)
+    songs: Song[]; //doing prop drilling 
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ children }) => {
-    const pathname = usePathname()
+const Sidebar: React.FC<SidebarProps> = ({ children, songs }) => {
+    const pathname = usePathname();
+    const player = usePlayer();
 
     //all of this prop is from SidebarItem (we have initialize there), then we use this routes inside the SidebarItem component
     const routes = useMemo(
@@ -35,7 +42,13 @@ const Sidebar: React.FC<SidebarProps> = ({ children }) => {
     )
 
     return (
-        <div className="flex h-full">
+        <div className={twMerge(`
+            flex
+            h-full
+        `,
+            //when the player is active, we will move up 80px the sidebar
+            player.activeId && "h-[calc(100%-80px)]"
+        )}>
             <div
                 className="
                 hidden 
@@ -48,14 +61,14 @@ const Sidebar: React.FC<SidebarProps> = ({ children }) => {
                 p-2
                 "
             >
-                <Box customCssClass='flex flex-col gap-y-4 px-5 py-4'>
+                <Box className='flex flex-col gap-y-4 px-5 py-4'>
                     {/*we have initialize the routes at the top */}
                     {routes.map((item) => (
                         <SidebarItem key={item.label} {...item} />
                     ))}
                 </Box>
-                <Box customCssClass="overflow-y-auto h-full">
-                  <Library />
+                <Box className="overflow-y-auto h-full">
+                  <Library songs={songs} />
                 </Box>
             </div>
             {/* here will show the right side content(main section) */}

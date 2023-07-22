@@ -2,10 +2,10 @@ import { twMerge } from 'tailwind-merge'
 
 interface BoxProps {
   children: React.ReactNode
-  customCssClass?: string
+  className?: string
 }
 
-const Box: React.FC<BoxProps> = ({ children, customCssClass }) => {
+const Box: React.FC<BoxProps> = ({ children, className }) => {
   return (
     <div
       className={twMerge(
@@ -16,7 +16,7 @@ const Box: React.FC<BoxProps> = ({ children, customCssClass }) => {
         h-fit 
         w-full
         `,
-        customCssClass,
+        className,
       )}
     >
       {children}

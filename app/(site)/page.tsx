@@ -1,8 +1,14 @@
 import Header from "@/components/Header";
 import ListItem from "@/components/ListItem";
+import getSongs from "@/actions/getSongs";
+import PageContent from "./components/PageContent";
 
-export default function Home() {
-  return ( 
+export const revalidate = 0; //this page will not be cached and the data on it will always up to date.
+
+export default async function Home() {
+  const songs = await getSongs(); //retrieve the songs by calling getSongs();
+
+  return (
     <div
       className="
       bg-neutral-900 
@@ -34,10 +40,10 @@ export default function Home() {
               mt-4
             "
           >
-            <ListItem 
+            <ListItem
               image="/images/liked.png"
               name="Liked Songs"
-              href="Liked"
+              href="liked" //if u here write liked, then u need to create a folder name same as this(Liked)and it will direct render the page.tsx
             />
           </div>
         </div>
@@ -51,7 +57,8 @@ export default function Home() {
         </div>
         {/* List of Songs! */}
         <div>
-          List of Songs!
+          {/* {songs.map((foreachSong) => <div>{foreachSong.title}</div>)} */}
+          <PageContent pageContentSongs={songs} />
         </div>
       </div>
     </div>
