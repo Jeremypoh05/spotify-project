@@ -1,7 +1,6 @@
 import Stripe from 'stripe';
 
 //some attributes are marked as optional (?:). This means those attributes may or may not be present in the object depending on the specific context.
-
 export interface Song { //this is for actions -> getSongs.ts
   id: string;
   user_id: string;
@@ -35,6 +34,10 @@ export interface Price {
   trial_period_days?: number | null;
   metadata?: Stripe.Metadata;
   products?: Product;
+}
+
+export interface ProductWithPrice extends Product {
+  prices?: Price[];
 }
 
 export interface Customer {
