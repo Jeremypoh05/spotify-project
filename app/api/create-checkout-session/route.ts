@@ -10,12 +10,11 @@ export async function POST(request: Request) {
   const { price, quantity = 1, metadata = {} } = await request.json()
 
   try {
-    const supabase = createRouteHandlerClient({
+    const supabase = createRouteHandlerClient({ 
       cookies,
     })
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+
+    const { data: { user } } = await supabase.auth.getUser()
 
     const customer = await createOrRetrieveCustomer({
       uuid: user?.id || '',
@@ -45,6 +44,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ sessionId: session.id })
   } catch (err: any) {
     console.log(err)
+    
     return new NextResponse('Internal Error', { status: 500 })
   }
 }

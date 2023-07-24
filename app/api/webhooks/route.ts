@@ -20,6 +20,7 @@ const relevantEvents = new Set([
   'customer.subscription.deleted',
 ])
 
+//POST REQUEST
 export async function POST(request: Request) {
   const body = await request.text()
   const sig = headers().get('Stripe-Signature')
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
 
   try {
     if (!sig || !webhookSecret) return
+
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err: any) {
     console.log(`❌ Error message: ${err.message}`)
@@ -61,6 +63,7 @@ export async function POST(request: Request) {
           const checkoutSession = event.data.object as Stripe.Checkout.Session
           if (checkoutSession.mode === 'subscription') {
             const subscriptionId = checkoutSession.subscription
+
             await manageSubscriptionStatusChange(
               subscriptionId as string,
               checkoutSession.customer as string,
@@ -73,12 +76,13 @@ export async function POST(request: Request) {
       }
     } catch (error) {
       console.log(error)
-      return new NextResponse(
+    return new NextResponse(
         'Webhook error: "Webhook handler failed. View logs."',
         { status: 400 },
       )
     }
   }
 
+  //IF WORKING
   return NextResponse.json({ received: true }, { status: 200 })
 }
