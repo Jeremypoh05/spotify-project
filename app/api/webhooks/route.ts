@@ -1,44 +1,84 @@
-import { Price } from '@/types'
+import Stripe from 'stripe'
+import { NextResponse } from 'next/server'
+import { headers } from 'next/headers'
 
-export const getURL = () => {
-  let url =
-    process?.env?.NEXT_PUBLIC_SITE_URL ?? // Set this to your site URL in production env.
-    process?.env?.NEXT_PUBLIC_VERCEL_URL ?? // Automatically set by Vercel.
-    'http://localhost:3000/'
-  // Make sure to include `https://` when not localhost.
-  url = url.includes('http') ? url : `https://${url}`
-  // Make sure to including trailing `/`.
-  url = url.charAt(url.length - 1) === '/' ? url : `${url}/`
-  return url
-}
+import { stripe } from '@/libs/stripe'
+import {
+  upsertProductRecord,
+  upsertPriceRecord,
+  manageSubscriptionStatusChange,
+} from '@/libs/supabaseAdmin'
 
-export const postData = async ({
-  url,
-  data,
-}: {
-  url: string
-  data?: { price: Price }
-}) => {
-  console.log('posting,', url, data)
+const relevantEvents = new Set([
+  'product.created',
+  'product.updated',
+  'price.created',
+  'price.updated',
+  'checkout.session.completed',
+  'customer.subscription.created',
+  'customer.subscription.updated',
+  'customer.subscription.deleted',
+])
 
-  const res: Response = await fetch(url, {
-    method: 'POST',
-    headers: new Headers({ 'Content-Type': 'application/json' }),
-    credentials: 'same-origin',
-    body: JSON.stringify(data),
-  })
+export async function POST(request: Request) {
+  const body = await request.text()
+  const sig = headers().get('Stripe-Signature')
 
-  if (!res.ok) {
-    console.log('Error in postData', { url, data, res })
+  const webhookSecret =
+    process.env.STRIPE_WEBHOOK_SECRET_LIVE ?? process.env.STRIPE_WEBHOOK_SECRET
+  let event: Stripe.Event
 
-    throw Error(res.statusText)
+  try {
+    if (!sig || !webhookSecret) return
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
+  } catch (err: any) {
+    console.log(`❌ Error message: ${err.message}`)
+    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 })
   }
 
-  return res.json()
-}
+  if (relevantEvents.has(event.type)) {
+    try {
+      switch (event.type) {
+        case 'product.created':
+        case 'product.updated':
+          await upsertProductRecord(event.data.object as Stripe.Product)
+          break
+        case 'price.created':
+        case 'price.updated':
+          await upsertPriceRecord(event.data.object as Stripe.Price)
+          break
+        case 'customer.subscription.created':
+        case 'customer.subscription.updated':
+        case 'customer.subscription.deleted':
+          const subscription = event.data.object as Stripe.Subscription
+          await manageSubscriptionStatusChange(
+            subscription.id,
+            subscription.customer as string,
+            event.type === 'customer.subscription.created',
+          )
+          break
+        case 'checkout.session.completed':
+          const checkoutSession = event.data.object as Stripe.Checkout.Session
+          if (checkoutSession.mode === 'subscription') {
+            const subscriptionId = checkoutSession.subscription
+            await manageSubscriptionStatusChange(
+              subscriptionId as string,
+              checkoutSession.customer as string,
+              true,
+            )
+          }
+          break
+        default:
+          throw new Error('Unhandled relevant event!')
+      }
+    } catch (error) {
+      console.log(error)
+      return new NextResponse(
+        'Webhook error: "Webhook handler failed. View logs."',
+        { status: 400 },
+      )
+    }
+  }
 
-export const toDateTime = (secs: number) => {
-  var t = new Date('1970-01-01T00:30:00Z') // Unix epoch start.
-  t.setSeconds(secs)
-  return t
+  return NextResponse.json({ received: true }, { status: 200 })
 }
